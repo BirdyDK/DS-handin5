@@ -29,6 +29,7 @@ type auctionServer struct {
 	higherServer           bool
 	electionCountdown      int
 	resetElectionCountdown chan bool
+	Timer                  time.Timer
 }
 
 func (s *auctionServer) Bid(ctx context.Context, req *pb.BidRequest) (*pb.BidResponse, error) {
