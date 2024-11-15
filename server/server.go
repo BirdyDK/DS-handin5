@@ -146,6 +146,37 @@ func (s *auctionServer) startAuction(duration time.Duration) {
 	s.auctionOver = true
 	s.mutex.Unlock()
 }
+func (s *auctionServer) PingSubordinates() {
+	for {
+		for _, peer := range s.peers {
+			_, _ = peer.LeaderMessage("Leader is working fine")
+		}
+		time.Sleep(5 * time.Second)
+	}
+}
+func (s *auctionServer) LeaderMessage(message string) {
+	log.Println(message)
+	s.TimerReset()
+
+}
+
+func (s *auctionServer) TimerReset() {
+	s.Timer.Reset(11 * time.Second)
+}
+
+func (s *auctionServer) TimerCheck() {
+	for !s.isLeader {
+		if len(s.Timer.C) > 0 {
+			<-s.Timer.C
+			s.startElection()
+
+		}
+		time.Sleep(time.Second)
+	}
+	if s.isLeader {
+		s.Timer.Stop()
+	}
+}
 
 func main() {
 	var (
@@ -199,13 +230,21 @@ func main() {
 			log.Printf("failed to connect to peer %s: %v", addr, err)
 		}
 	}
+	if server.baseport == server.nodeID {
+		go server.PingSubordinates()
+	}
 
 	// Start the auction with a 2-minute timer
-	go server.startAuction(2 * time.Minute)
+	if server.isLeader {
+		go server.startAuction(2 * time.Minute)
+	}
 
 	if err := grpcServer.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 	}
+	server.Timer = *time.NewTimer(20 * time.Second)
+	go server.TimerCheck()
+
 }
 
 // go run server.go --portid=? --baseport=? --servercount=? --isleader=true
