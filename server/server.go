@@ -151,7 +151,6 @@ func main() {
 		portID      = flag.Int("portID", 0, "Port ID")
 		baseport    = flag.Int("basePort", 0, "Base Port")
 		servercount = flag.Int("serverCount", 0, "Server Count")
-		isLeader    = flag.Bool("isLeader", false, "Is Leader")
 	)
 	flag.Parse()
 
@@ -176,7 +175,7 @@ func main() {
 	server := &auctionServer{}
 	pb.RegisterAuctionServer(grpcServer, server)
 
-	server.isLeader = *isLeader
+	server.isLeader = *portID == *baseport
 	server.leaderID = int32(*baseport)
 	server.baseport = int32(*baseport)
 	server.nodeID = int32(*portID)
