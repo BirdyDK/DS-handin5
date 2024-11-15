@@ -21,6 +21,7 @@ message ResultRequest {}
 
 message ResultResponse {
     int32 highest_bid = 1;
+    string winner = 2;
 }
 
 message ElectionRequest {
