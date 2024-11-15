@@ -16,13 +16,17 @@ import (
 
 type auctionServer struct {
 	pb.UnimplementedAuctionServer
-	highestBid  int32
-	auctionOver bool
-	isLeader    bool
-	nodeID      int32
-	leaderID    int32
-	peers       []pb.AuctionClient
-	mutex       sync.Mutex
+	highestBid             int32
+	auctionOver            bool
+	isLeader               bool
+	nodeID                 int32
+	leaderID               int32
+	peers                  []pb.AuctionClient
+	mutex                  sync.Mutex
+	electionInProgress     bool
+	higherServer           bool
+	electionCountdown      int
+	resetElectionCountdown chan bool
 }
 
 func (s *auctionServer) Bid(ctx context.Context, req *pb.BidRequest) (*pb.BidResponse, error) {
@@ -52,13 +56,48 @@ func (s *auctionServer) Result(ctx context.Context, req *pb.ResultRequest) (*pb.
 }
 
 func (s *auctionServer) Election(ctx context.Context, req *pb.ElectionRequest) (*pb.ElectionResponse, error) {
-	if req.NodeId > s.nodeID {
+	/*if req.NodeId < s.nodeID {
 		s.mutex.Lock()
 		s.isLeader = false
 		s.mutex.Unlock()
 		go s.startElection()
+	}*/
+	if !s.electionInProgress {
+		s.electionInProgress = true
+		s.higherServer = req.NodeId > s.nodeID
+		s.electionCountdown = 20
+		s.resetElectionCountdown = make(chan bool, 100)
+		go s.RunningElection()
+	} else {
+		if req.NodeId > s.nodeID {
+			s.higherServer = true
+		}
+		s.resetElectionCountdown <- true
 	}
+
 	return &pb.ElectionResponse{}, nil
+}
+
+func (s *auctionServer) RunningElection() {
+	for {
+		if s.electionCountdown == 0 {
+			s.electionInProgress = false
+			if !s.higherServer {
+				s.BecomeLeader()
+			}
+			break
+		}
+		s.electionCountdown--
+		if len(s.resetElectionCountdown) > 0 {
+			<-s.resetElectionCountdown
+			s.electionCountdown = 20
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+}
+
+func (s *auctionServer) BecomeLeader() {
+
 }
 
 func (s *auctionServer) Victory(ctx context.Context, req *pb.VictoryRequest) (*pb.VictoryResponse, error) {
@@ -73,21 +112,26 @@ func (s *auctionServer) startElection() {
 	s.mutex.Lock()
 	s.isLeader = false
 	s.mutex.Unlock()
+	higherIDNodes := false
 
-	for _, peer := range s.peers {
-		_, err := peer.Election(context.Background(), &pb.ElectionRequest{NodeId: s.nodeID})
-		if err == nil {
-			return
+	for id, peer := range s.peers {
+		if id > int(s.nodeID) {
+			higherIDNodes = true
+			_, err := peer.Election(context.Background(), &pb.ElectionRequest{NodeId: s.nodeID})
+			if err == nil {
+				return
+			}
 		}
 	}
 
-	s.mutex.Lock()
-	s.leaderID = s.nodeID
-	s.isLeader = true
-	s.mutex.Unlock()
-
-	for _, peer := range s.peers {
-		_, _ = peer.Victory(context.Background(), &pb.VictoryRequest{LeaderId: s.nodeID})
+	if !higherIDNodes {
+		s.mutex.Lock()
+		s.leaderID = s.nodeID
+		s.isLeader = true
+		s.mutex.Unlock()
+		for _, peer := range s.peers {
+			_, _ = peer.Victory(context.Background(), &pb.VictoryRequest{LeaderId: s.nodeID})
+		}
 	}
 }
 
