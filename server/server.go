@@ -68,12 +68,14 @@ func (s *auctionServer) Election(ctx context.Context, req *pb.ElectionRequest) (
 		s.electionCountdown = 20
 		s.resetElectionCountdown = make(chan bool, 100)
 		go s.RunningElection()
-	} else {
-		if req.NodeId > s.nodeID {
-			s.higherServer = true
-		}
-		s.resetElectionCountdown <- true
 	}
+
+	if req.NodeId > s.nodeID {
+		s.higherServer = true
+	} else {
+		s.startElection()
+	}
+	s.resetElectionCountdown <- true
 
 	return &pb.ElectionResponse{}, nil
 }
