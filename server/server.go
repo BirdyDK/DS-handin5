@@ -20,6 +20,8 @@ type auctionServer struct {
 	auctionOver            bool
 	isLeader               bool
 	nodeID                 int32
+	baseport               int32
+	serverCount            int32
 	leaderID               int32
 	peers                  []pb.AuctionClient
 	mutex                  sync.Mutex
@@ -176,6 +178,9 @@ func main() {
 
 	server.isLeader = *isLeader
 	server.leaderID = int32(*baseport)
+	server.baseport = int32(*baseport)
+	server.nodeID = int32(*portID)
+	server.serverCount = int32(*servercount)
 
 	var peerAddrList []int
 	for i := *baseport; i < *servercount; i++ {
