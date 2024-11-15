@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+option go_package = "github.com/BirdyDK/DS-handin5";
+
+service Auction {
+    rpc Bid(BidRequest) returns (BidResponse);
+    rpc Result(ResultRequest) returns (ResultResponse);
+}
+
+message BidRequest {
+    int32 amount = 1;
+}
+
+message BidResponse {
+    string status = 1;
+}
+
+message ResultRequest {}
+
+message ResultResponse {
+    int32 highest_bid = 1;
+    string winner = 2;
+}
