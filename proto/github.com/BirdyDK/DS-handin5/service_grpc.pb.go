@@ -19,8 +19,10 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	Auction_Bid_FullMethodName    = "/Auction/Bid"
-	Auction_Result_FullMethodName = "/Auction/Result"
+	Auction_Bid_FullMethodName      = "/Auction/Bid"
+	Auction_Result_FullMethodName   = "/Auction/Result"
+	Auction_Election_FullMethodName = "/Auction/Election"
+	Auction_Victory_FullMethodName  = "/Auction/Victory"
 )
 
 // AuctionClient is the client API for Auction service.
@@ -29,6 +31,8 @@ const (
 type AuctionClient interface {
 	Bid(ctx context.Context, in *BidRequest, opts ...grpc.CallOption) (*BidResponse, error)
 	Result(ctx context.Context, in *ResultRequest, opts ...grpc.CallOption) (*ResultResponse, error)
+	Election(ctx context.Context, in *ElectionRequest, opts ...grpc.CallOption) (*ElectionResponse, error)
+	Victory(ctx context.Context, in *VictoryRequest, opts ...grpc.CallOption) (*VictoryResponse, error)
 }
 
 type auctionClient struct {
@@ -59,12 +63,34 @@ func (c *auctionClient) Result(ctx context.Context, in *ResultRequest, opts ...g
 	return out, nil
 }
 
+func (c *auctionClient) Election(ctx context.Context, in *ElectionRequest, opts ...grpc.CallOption) (*ElectionResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ElectionResponse)
+	err := c.cc.Invoke(ctx, Auction_Election_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *auctionClient) Victory(ctx context.Context, in *VictoryRequest, opts ...grpc.CallOption) (*VictoryResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(VictoryResponse)
+	err := c.cc.Invoke(ctx, Auction_Victory_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // AuctionServer is the server API for Auction service.
 // All implementations must embed UnimplementedAuctionServer
 // for forward compatibility.
 type AuctionServer interface {
 	Bid(context.Context, *BidRequest) (*BidResponse, error)
 	Result(context.Context, *ResultRequest) (*ResultResponse, error)
+	Election(context.Context, *ElectionRequest) (*ElectionResponse, error)
+	Victory(context.Context, *VictoryRequest) (*VictoryResponse, error)
 	mustEmbedUnimplementedAuctionServer()
 }
 
@@ -80,6 +106,12 @@ func (UnimplementedAuctionServer) Bid(context.Context, *BidRequest) (*BidRespons
 }
 func (UnimplementedAuctionServer) Result(context.Context, *ResultRequest) (*ResultResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Result not implemented")
+}
+func (UnimplementedAuctionServer) Election(context.Context, *ElectionRequest) (*ElectionResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Election not implemented")
+}
+func (UnimplementedAuctionServer) Victory(context.Context, *VictoryRequest) (*VictoryResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Victory not implemented")
 }
 func (UnimplementedAuctionServer) mustEmbedUnimplementedAuctionServer() {}
 func (UnimplementedAuctionServer) testEmbeddedByValue()                 {}
@@ -138,6 +170,42 @@ func _Auction_Result_Handler(srv interface{}, ctx context.Context, dec func(inte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Auction_Election_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ElectionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuctionServer).Election(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Auction_Election_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuctionServer).Election(ctx, req.(*ElectionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Auction_Victory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(VictoryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuctionServer).Victory(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Auction_Victory_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuctionServer).Victory(ctx, req.(*VictoryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Auction_ServiceDesc is the grpc.ServiceDesc for Auction service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -152,6 +220,14 @@ var Auction_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Result",
 			Handler:    _Auction_Result_Handler,
+		},
+		{
+			MethodName: "Election",
+			Handler:    _Auction_Election_Handler,
+		},
+		{
+			MethodName: "Victory",
+			Handler:    _Auction_Victory_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

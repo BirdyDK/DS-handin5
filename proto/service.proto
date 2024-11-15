@@ -5,6 +5,8 @@ option go_package = "github.com/BirdyDK/DS-handin5";
 service Auction {
     rpc Bid(BidRequest) returns (BidResponse);
     rpc Result(ResultRequest) returns (ResultResponse);
+    rpc Election(ElectionRequest) returns (ElectionResponse);
+    rpc Victory(VictoryRequest) returns (VictoryResponse);
 }
 
 message BidRequest {
@@ -19,5 +21,16 @@ message ResultRequest {}
 
 message ResultResponse {
     int32 highest_bid = 1;
-    string winner = 2;
 }
+
+message ElectionRequest {
+    int32 node_id = 1;
+}
+
+message ElectionResponse {}
+
+message VictoryRequest {
+    int32 leader_id = 1;
+}
+
+message VictoryResponse {}
