@@ -29,10 +29,12 @@ type auctionServer struct {
 	higherServer           bool
 	electionCountdown      int
 	resetElectionCountdown chan bool
+	durationTimer          int
 	Timer                  time.Timer
 }
 
 func (s *auctionServer) Bid(ctx context.Context, req *pb.BidRequest) (*pb.BidResponse, error) {
+	log.Println("Bid")
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -48,6 +50,7 @@ func (s *auctionServer) Bid(ctx context.Context, req *pb.BidRequest) (*pb.BidRes
 }
 
 func (s *auctionServer) Result(ctx context.Context, req *pb.ResultRequest) (*pb.ResultResponse, error) {
+	log.Println("Result")
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -59,6 +62,7 @@ func (s *auctionServer) Result(ctx context.Context, req *pb.ResultRequest) (*pb.
 }
 
 func (s *auctionServer) Election(ctx context.Context, req *pb.ElectionRequest) (*pb.ElectionResponse, error) {
+	log.Println("Election")
 	/*if req.NodeId < s.nodeID {
 		s.mutex.Lock()
 		s.isLeader = false
@@ -84,6 +88,7 @@ func (s *auctionServer) Election(ctx context.Context, req *pb.ElectionRequest) (
 }
 
 func (s *auctionServer) RunningElection() {
+	log.Println("RunningElection")
 	for {
 		if s.electionCountdown == 0 {
 			s.electionInProgress = false
@@ -102,10 +107,11 @@ func (s *auctionServer) RunningElection() {
 }
 
 func (s *auctionServer) BecomeLeader() {
-
+	log.Println("BecomeLeader")
 }
 
 func (s *auctionServer) Victory(ctx context.Context, req *pb.VictoryRequest) (*pb.VictoryResponse, error) {
+	log.Println("Victory")
 	s.mutex.Lock()
 	s.leaderID = req.LeaderId
 	s.isLeader = (s.leaderID == s.nodeID)
@@ -114,6 +120,7 @@ func (s *auctionServer) Victory(ctx context.Context, req *pb.VictoryRequest) (*p
 }
 
 func (s *auctionServer) startElection() {
+	log.Println("StartElection")
 	s.mutex.Lock()
 	s.isLeader = false
 	s.mutex.Unlock()
@@ -141,12 +148,14 @@ func (s *auctionServer) startElection() {
 }
 
 func (s *auctionServer) startAuction(duration time.Duration) {
+	log.Println("StartAuction")
 	time.Sleep(duration)
 	s.mutex.Lock()
 	s.auctionOver = true
 	s.mutex.Unlock()
 }
 func (s *auctionServer) PingSubordinates() {
+	log.Println("PingSubordinates")
 	fmt.Println(s.peers)
 	for {
 		fmt.Println("pinging subordinates")
@@ -158,6 +167,7 @@ func (s *auctionServer) PingSubordinates() {
 	}
 }
 func (s *auctionServer) LeaderMessage(ctx context.Context, req *pb.LeaderMessageRequest) (*pb.LeaderMessageResponse, error) {
+	log.Println("LeaderMessage")
 	fmt.Println("ping message")
 	log.Println(req)
 	fmt.Println("ping message over")
@@ -166,15 +176,16 @@ func (s *auctionServer) LeaderMessage(ctx context.Context, req *pb.LeaderMessage
 }
 
 func (s *auctionServer) TimerReset() {
-	s.Timer.Reset(3 * time.Second)
+	log.Println("TimerReset")
+	s.durationTimer = 3
 	fmt.Println("timer is reset")
 }
 
 func (s *auctionServer) TimerCheck() {
 	for !s.isLeader {
-		if len(s.Timer.C) > 0 {
-			fmt.Println("timer has run out")
-			<-s.Timer.C
+		log.Println("TimerCheck")
+		s.durationTimer--
+		if s.durationTimer == 0 {
 			s.startElection()
 
 		}
@@ -186,6 +197,7 @@ func (s *auctionServer) TimerCheck() {
 }
 
 func main() {
+	log.Println("Main")
 	var (
 		portID      = flag.Int("portID", 0, "Port ID")
 		baseport    = flag.Int("basePort", 0, "Base Port")
@@ -219,6 +231,7 @@ func main() {
 	server.baseport = int32(*baseport)
 	server.nodeID = int32(*portID)
 	server.serverCount = int32(*servercount)
+	server.durationTimer = 30
 
 	var peerAddrList []int
 	for i := *baseport; i < *baseport+*servercount; i++ {
@@ -245,8 +258,8 @@ func main() {
 	if server.isLeader {
 		go server.startAuction(2 * time.Minute)
 	}
-	server.Timer = *time.NewTimer(20 * time.Second)
 	go server.TimerCheck()
+	server.Timer = *time.NewTimer(20 * time.Second)
 
 	if err := grpcServer.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
