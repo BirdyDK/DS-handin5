@@ -147,26 +147,33 @@ func (s *auctionServer) startAuction(duration time.Duration) {
 	s.mutex.Unlock()
 }
 func (s *auctionServer) PingSubordinates() {
+	fmt.Println(s.peers)
 	for {
+		fmt.Println("pinging subordinates")
 		for _, peer := range s.peers {
+			fmt.Println("pinging subordinates for real this time")
 			_, _ = peer.LeaderMessage(context.Background(), &pb.LeaderMessageRequest{Message: "the leader is trying to reach you"})
 		}
-		time.Sleep(5 * time.Second)
+		time.Sleep(1 * time.Second)
 	}
 }
 func (s *auctionServer) LeaderMessage(ctx context.Context, req *pb.LeaderMessageRequest) (*pb.LeaderMessageResponse, error) {
+	fmt.Println("ping message")
 	log.Println(req)
+	fmt.Println("ping message over")
 	s.TimerReset()
 	return &pb.LeaderMessageResponse{}, nil
 }
 
 func (s *auctionServer) TimerReset() {
-	s.Timer.Reset(11 * time.Second)
+	s.Timer.Reset(3 * time.Second)
+	fmt.Println("timer is reset")
 }
 
 func (s *auctionServer) TimerCheck() {
 	for !s.isLeader {
 		if len(s.Timer.C) > 0 {
+			fmt.Println("timer has run out")
 			<-s.Timer.C
 			s.startElection()
 
@@ -214,14 +221,14 @@ func main() {
 	server.serverCount = int32(*servercount)
 
 	var peerAddrList []int
-	for i := *baseport; i < *servercount; i++ {
+	for i := *baseport; i < *baseport+*servercount; i++ {
 		if i == *portID {
 			continue
 		}
 
 		peerAddrList = append(peerAddrList, i)
 	}
-
+	fmt.Println(peerAddrList)
 	for _, addr := range peerAddrList {
 		conn, err := grpc.Dial(fmt.Sprintf("localhost:%d", addr), grpc.WithInsecure())
 		if err == nil {
@@ -238,12 +245,12 @@ func main() {
 	if server.isLeader {
 		go server.startAuction(2 * time.Minute)
 	}
+	server.Timer = *time.NewTimer(20 * time.Second)
+	go server.TimerCheck()
 
 	if err := grpcServer.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 	}
-	server.Timer = *time.NewTimer(20 * time.Second)
-	go server.TimerCheck()
 
 }
 
