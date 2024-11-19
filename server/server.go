@@ -149,15 +149,15 @@ func (s *auctionServer) startAuction(duration time.Duration) {
 func (s *auctionServer) PingSubordinates() {
 	for {
 		for _, peer := range s.peers {
-			_, _ = peer.LeaderMessage(context.Background(), &pb.LeaderPing{Pingmessage: "the leader is trying to reach you"})
+			_, _ = peer.LeaderMessage(context.Background(), &pb.LeaderMessageRequest{Message: "the leader is trying to reach you"})
 		}
 		time.Sleep(5 * time.Second)
 	}
 }
-func (s *auctionServer) LeaderMessage(ctx context.Context, req *pb.LeaderPing) {
+func (s *auctionServer) LeaderMessage(ctx context.Context, req *pb.LeaderMessageRequest) (*pb.LeaderMessageResponse, error) {
 	log.Println(req)
 	s.TimerReset()
-
+	return &pb.LeaderMessageResponse{}, nil
 }
 
 func (s *auctionServer) TimerReset() {
