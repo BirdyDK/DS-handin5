@@ -24,12 +24,14 @@ type auctionServer struct {
 	serverCount            int32
 	leaderID               int32
 	peers                  []pb.AuctionClient
+	peerAddrList           []int32
 	mutex                  sync.Mutex
 	electionInProgress     bool
 	higherServer           bool
 	electionCountdown      int
 	resetElectionCountdown chan bool
 	durationTimer          int
+	durationOver           chan bool
 	Timer                  time.Timer
 }
 
@@ -126,8 +128,9 @@ func (s *auctionServer) startElection() {
 	s.mutex.Unlock()
 	higherIDNodes := false
 
-	for id, peer := range s.peers {
-		if id > int(s.nodeID) {
+	for index, peer := range s.peers {
+		fmt.Println("Index: ", index, " Peer: ", peer, " ID: ", s.peerAddrList[index])
+		if int(s.peerAddrList[index]) > int(s.nodeID) {
 			higherIDNodes = true
 			_, err := peer.Election(context.Background(), &pb.ElectionRequest{NodeId: s.nodeID})
 			if err == nil {
@@ -231,18 +234,17 @@ func main() {
 	server.baseport = int32(*baseport)
 	server.nodeID = int32(*portID)
 	server.serverCount = int32(*servercount)
-	server.durationTimer = 30
+	server.durationTimer = 3
 
-	var peerAddrList []int
 	for i := *baseport; i < *baseport+*servercount; i++ {
 		if i == *portID {
 			continue
 		}
 
-		peerAddrList = append(peerAddrList, i)
+		server.peerAddrList = append(server.peerAddrList, int32(i))
 	}
-	fmt.Println(peerAddrList)
-	for _, addr := range peerAddrList {
+	fmt.Println(server.peerAddrList)
+	for _, addr := range server.peerAddrList {
 		conn, err := grpc.Dial(fmt.Sprintf("localhost:%d", addr), grpc.WithInsecure())
 		if err == nil {
 			server.peers = append(server.peers, pb.NewAuctionClient(conn))
@@ -250,6 +252,7 @@ func main() {
 			log.Printf("failed to connect to peer %d: %v", addr, err)
 		}
 	}
+	fmt.Println(server.peers)
 	if server.baseport == server.nodeID {
 		go server.PingSubordinates()
 	}
