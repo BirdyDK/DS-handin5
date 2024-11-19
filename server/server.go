@@ -227,7 +227,7 @@ func main() {
 		if err == nil {
 			server.peers = append(server.peers, pb.NewAuctionClient(conn))
 		} else {
-			log.Printf("failed to connect to peer %v: %v", addr, err)
+			log.Printf("failed to connect to peer %d: %v", addr, err)
 		}
 	}
 	if server.baseport == server.nodeID {
