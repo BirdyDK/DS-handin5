@@ -8,11 +8,11 @@ The program takes 4 parameters:
 
 **Example of how to run the program:**
 
-go run server.go --portID=5000 --basePort=5000 --serverCount=3
+go run server.go --portID=50051 --basePort=50051 --serverCount=3
 
-go run server.go --portID=5001 --basePort=5000 --serverCount=3
+go run server.go --portID=50052 --basePort=50051 --serverCount=3
 
-go run server.go --portID=5002 --basePort=5000 --serverCount=3
+go run server.go --portID=50053 --basePort=50051 --serverCount=3
 
 For each client you will run the the following for as many clients as you want in the auction:
 
