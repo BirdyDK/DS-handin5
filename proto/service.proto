@@ -10,6 +10,11 @@ service Auction {
     rpc LeaderMessage (LeaderMessageRequest) returns (LeaderMessageResponse);
 }
 
+service Registry {
+    rpc GetLeader(LeaderRequest) returns (LeaderResponse);
+    rpc UpdateLeader(LeaderUpdate) returns (LeaderUpdateResponse);
+}
+
 message BidRequest {
     int32 amount = 1;
 }
@@ -42,3 +47,17 @@ message LeaderMessageRequest {
 }
 
 message LeaderMessageResponse {}
+
+message LeaderRequest {}
+
+message LeaderResponse {
+    string leader_address = 1;
+}
+
+message LeaderUpdate {
+    string leader_address = 1;
+}
+
+message LeaderUpdateResponse {
+    string status = 1;
+}
