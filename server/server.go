@@ -234,7 +234,7 @@ func main() {
 	server.baseport = int32(*baseport)
 	server.nodeID = int32(*portID)
 	server.serverCount = int32(*servercount)
-	server.durationTimer = 3
+	server.durationTimer = 60
 
 	for i := *baseport; i < *baseport+*servercount; i++ {
 		if i == *portID {
