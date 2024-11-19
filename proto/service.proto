@@ -7,6 +7,7 @@ service Auction {
     rpc Result(ResultRequest) returns (ResultResponse);
     rpc Election(ElectionRequest) returns (ElectionResponse);
     rpc Victory(VictoryRequest) returns (VictoryResponse);
+    rpc LeaderMessage (LeaderMessageRequest) returns (LeaderMessageResponse);
 }
 
 message BidRequest {
@@ -35,3 +36,9 @@ message VictoryRequest {
 }
 
 message VictoryResponse {}
+
+message LeaderMessageRequest {
+    string message = 1;
+}
+
+message LeaderMessageResponse {}

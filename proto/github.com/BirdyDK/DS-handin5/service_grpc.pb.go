@@ -19,10 +19,11 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	Auction_Bid_FullMethodName      = "/Auction/Bid"
-	Auction_Result_FullMethodName   = "/Auction/Result"
-	Auction_Election_FullMethodName = "/Auction/Election"
-	Auction_Victory_FullMethodName  = "/Auction/Victory"
+	Auction_Bid_FullMethodName           = "/Auction/Bid"
+	Auction_Result_FullMethodName        = "/Auction/Result"
+	Auction_Election_FullMethodName      = "/Auction/Election"
+	Auction_Victory_FullMethodName       = "/Auction/Victory"
+	Auction_LeaderMessage_FullMethodName = "/Auction/LeaderMessage"
 )
 
 // AuctionClient is the client API for Auction service.
@@ -33,6 +34,7 @@ type AuctionClient interface {
 	Result(ctx context.Context, in *ResultRequest, opts ...grpc.CallOption) (*ResultResponse, error)
 	Election(ctx context.Context, in *ElectionRequest, opts ...grpc.CallOption) (*ElectionResponse, error)
 	Victory(ctx context.Context, in *VictoryRequest, opts ...grpc.CallOption) (*VictoryResponse, error)
+	LeaderMessage(ctx context.Context, in *LeaderMessageRequest, opts ...grpc.CallOption) (*LeaderMessageResponse, error)
 }
 
 type auctionClient struct {
@@ -83,6 +85,16 @@ func (c *auctionClient) Victory(ctx context.Context, in *VictoryRequest, opts ..
 	return out, nil
 }
 
+func (c *auctionClient) LeaderMessage(ctx context.Context, in *LeaderMessageRequest, opts ...grpc.CallOption) (*LeaderMessageResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(LeaderMessageResponse)
+	err := c.cc.Invoke(ctx, Auction_LeaderMessage_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // AuctionServer is the server API for Auction service.
 // All implementations must embed UnimplementedAuctionServer
 // for forward compatibility.
@@ -91,6 +103,7 @@ type AuctionServer interface {
 	Result(context.Context, *ResultRequest) (*ResultResponse, error)
 	Election(context.Context, *ElectionRequest) (*ElectionResponse, error)
 	Victory(context.Context, *VictoryRequest) (*VictoryResponse, error)
+	LeaderMessage(context.Context, *LeaderMessageRequest) (*LeaderMessageResponse, error)
 	mustEmbedUnimplementedAuctionServer()
 }
 
@@ -112,6 +125,9 @@ func (UnimplementedAuctionServer) Election(context.Context, *ElectionRequest) (*
 }
 func (UnimplementedAuctionServer) Victory(context.Context, *VictoryRequest) (*VictoryResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Victory not implemented")
+}
+func (UnimplementedAuctionServer) LeaderMessage(context.Context, *LeaderMessageRequest) (*LeaderMessageResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method LeaderMessage not implemented")
 }
 func (UnimplementedAuctionServer) mustEmbedUnimplementedAuctionServer() {}
 func (UnimplementedAuctionServer) testEmbeddedByValue()                 {}
@@ -206,6 +222,24 @@ func _Auction_Victory_Handler(srv interface{}, ctx context.Context, dec func(int
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Auction_LeaderMessage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(LeaderMessageRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuctionServer).LeaderMessage(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Auction_LeaderMessage_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuctionServer).LeaderMessage(ctx, req.(*LeaderMessageRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Auction_ServiceDesc is the grpc.ServiceDesc for Auction service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -228,6 +262,10 @@ var Auction_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Victory",
 			Handler:    _Auction_Victory_Handler,
+		},
+		{
+			MethodName: "LeaderMessage",
+			Handler:    _Auction_LeaderMessage_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
