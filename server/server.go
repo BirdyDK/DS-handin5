@@ -33,6 +33,7 @@ type auctionServer struct {
 	durationTimer          int
 	durationOver           chan bool
 	Timer                  time.Timer
+	serverPort             int32
 }
 
 func (s *auctionServer) Bid(ctx context.Context, req *pb.BidRequest) (*pb.BidResponse, error) {
@@ -110,6 +111,29 @@ func (s *auctionServer) RunningElection() {
 
 func (s *auctionServer) BecomeLeader() {
 	log.Println("BecomeLeader")
+	s.mutex.Lock()
+	s.serverPort = s.leaderID
+	s.leaderID = s.nodeID
+	s.isLeader = (s.leaderID == s.nodeID)
+	s.mutex.Unlock()
+
+	// Start the auction timer if it hasn't been started
+	go s.startAuction(2 * time.Minute)
+
+	go s.PingSubordinates()
+
+	// Rebind to port 5000 as leader
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", s.serverPort))
+	if err != nil {
+		log.Fatalf("failed to listen on port 5000: %v", err)
+	}
+	grpcServer := grpc.NewServer()
+	pb.RegisterAuctionServer(grpcServer, s)
+	go func() {
+		if err := grpcServer.Serve(lis); err != nil {
+			log.Fatalf("failed to serve: %v", err)
+		}
+	}()
 }
 
 func (s *auctionServer) Victory(ctx context.Context, req *pb.VictoryRequest) (*pb.VictoryResponse, error) {
@@ -117,6 +141,7 @@ func (s *auctionServer) Victory(ctx context.Context, req *pb.VictoryRequest) (*p
 	s.mutex.Lock()
 	s.leaderID = req.LeaderId
 	s.isLeader = (s.leaderID == s.nodeID)
+	s.serverPort = s.leaderID
 	s.mutex.Unlock()
 	return &pb.VictoryResponse{}, nil
 }
@@ -128,9 +153,14 @@ func (s *auctionServer) startElection() {
 	s.mutex.Unlock()
 	higherIDNodes := false
 
+	if len(s.peers) == 0 {
+		s.BecomeLeader()
+		return
+	}
+
 	for index, peer := range s.peers {
 		fmt.Println("Index: ", index, " Peer: ", peer, " ID: ", s.peerAddrList[index])
-		if int(s.peerAddrList[index]) > int(s.nodeID) {
+		if s.peerAddrList[index] > s.nodeID {
 			higherIDNodes = true
 			_, err := peer.Election(context.Background(), &pb.ElectionRequest{NodeId: s.nodeID})
 			if err == nil {
@@ -220,13 +250,14 @@ func main() {
 		log.Println("Server count must be specified")
 	}
 
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", *portID))
+	initialPort := *portID
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", initialPort))
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
 
 	grpcServer := grpc.NewServer()
-	server := &auctionServer{}
+	server := &auctionServer{serverPort: int32(initialPort)}
 	pb.RegisterAuctionServer(grpcServer, server)
 
 	server.isLeader = *portID == *baseport
@@ -237,7 +268,7 @@ func main() {
 	server.durationTimer = 60
 
 	for i := *baseport; i < *baseport+*servercount; i++ {
-		if i == *portID {
+		if i == *portID || i == *baseport {
 			continue
 		}
 
