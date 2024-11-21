@@ -22,8 +22,8 @@ const (
 	Auction_Bid_FullMethodName           = "/Auction/Bid"
 	Auction_Result_FullMethodName        = "/Auction/Result"
 	Auction_Election_FullMethodName      = "/Auction/Election"
-	Auction_Victory_FullMethodName       = "/Auction/Victory"
 	Auction_LeaderMessage_FullMethodName = "/Auction/LeaderMessage"
+	Auction_Status_FullMethodName        = "/Auction/Status"
 )
 
 // AuctionClient is the client API for Auction service.
@@ -33,8 +33,8 @@ type AuctionClient interface {
 	Bid(ctx context.Context, in *BidRequest, opts ...grpc.CallOption) (*BidResponse, error)
 	Result(ctx context.Context, in *ResultRequest, opts ...grpc.CallOption) (*ResultResponse, error)
 	Election(ctx context.Context, in *ElectionRequest, opts ...grpc.CallOption) (*ElectionResponse, error)
-	Victory(ctx context.Context, in *VictoryRequest, opts ...grpc.CallOption) (*VictoryResponse, error)
 	LeaderMessage(ctx context.Context, in *LeaderMessageRequest, opts ...grpc.CallOption) (*LeaderMessageResponse, error)
+	Status(ctx context.Context, in *StatusRequest, opts ...grpc.CallOption) (*StatusResponse, error)
 }
 
 type auctionClient struct {
@@ -75,20 +75,20 @@ func (c *auctionClient) Election(ctx context.Context, in *ElectionRequest, opts 
 	return out, nil
 }
 
-func (c *auctionClient) Victory(ctx context.Context, in *VictoryRequest, opts ...grpc.CallOption) (*VictoryResponse, error) {
+func (c *auctionClient) LeaderMessage(ctx context.Context, in *LeaderMessageRequest, opts ...grpc.CallOption) (*LeaderMessageResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(VictoryResponse)
-	err := c.cc.Invoke(ctx, Auction_Victory_FullMethodName, in, out, cOpts...)
+	out := new(LeaderMessageResponse)
+	err := c.cc.Invoke(ctx, Auction_LeaderMessage_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *auctionClient) LeaderMessage(ctx context.Context, in *LeaderMessageRequest, opts ...grpc.CallOption) (*LeaderMessageResponse, error) {
+func (c *auctionClient) Status(ctx context.Context, in *StatusRequest, opts ...grpc.CallOption) (*StatusResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(LeaderMessageResponse)
-	err := c.cc.Invoke(ctx, Auction_LeaderMessage_FullMethodName, in, out, cOpts...)
+	out := new(StatusResponse)
+	err := c.cc.Invoke(ctx, Auction_Status_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -102,8 +102,8 @@ type AuctionServer interface {
 	Bid(context.Context, *BidRequest) (*BidResponse, error)
 	Result(context.Context, *ResultRequest) (*ResultResponse, error)
 	Election(context.Context, *ElectionRequest) (*ElectionResponse, error)
-	Victory(context.Context, *VictoryRequest) (*VictoryResponse, error)
 	LeaderMessage(context.Context, *LeaderMessageRequest) (*LeaderMessageResponse, error)
+	Status(context.Context, *StatusRequest) (*StatusResponse, error)
 	mustEmbedUnimplementedAuctionServer()
 }
 
@@ -123,11 +123,11 @@ func (UnimplementedAuctionServer) Result(context.Context, *ResultRequest) (*Resu
 func (UnimplementedAuctionServer) Election(context.Context, *ElectionRequest) (*ElectionResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Election not implemented")
 }
-func (UnimplementedAuctionServer) Victory(context.Context, *VictoryRequest) (*VictoryResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Victory not implemented")
-}
 func (UnimplementedAuctionServer) LeaderMessage(context.Context, *LeaderMessageRequest) (*LeaderMessageResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method LeaderMessage not implemented")
+}
+func (UnimplementedAuctionServer) Status(context.Context, *StatusRequest) (*StatusResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Status not implemented")
 }
 func (UnimplementedAuctionServer) mustEmbedUnimplementedAuctionServer() {}
 func (UnimplementedAuctionServer) testEmbeddedByValue()                 {}
@@ -204,24 +204,6 @@ func _Auction_Election_Handler(srv interface{}, ctx context.Context, dec func(in
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Auction_Victory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(VictoryRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(AuctionServer).Victory(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: Auction_Victory_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AuctionServer).Victory(ctx, req.(*VictoryRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _Auction_LeaderMessage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(LeaderMessageRequest)
 	if err := dec(in); err != nil {
@@ -236,6 +218,24 @@ func _Auction_LeaderMessage_Handler(srv interface{}, ctx context.Context, dec fu
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(AuctionServer).LeaderMessage(ctx, req.(*LeaderMessageRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Auction_Status_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StatusRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AuctionServer).Status(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Auction_Status_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AuctionServer).Status(ctx, req.(*StatusRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -260,152 +260,12 @@ var Auction_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Auction_Election_Handler,
 		},
 		{
-			MethodName: "Victory",
-			Handler:    _Auction_Victory_Handler,
-		},
-		{
 			MethodName: "LeaderMessage",
 			Handler:    _Auction_LeaderMessage_Handler,
 		},
-	},
-	Streams:  []grpc.StreamDesc{},
-	Metadata: "service.proto",
-}
-
-const (
-	Registry_GetLeader_FullMethodName    = "/Registry/GetLeader"
-	Registry_UpdateLeader_FullMethodName = "/Registry/UpdateLeader"
-)
-
-// RegistryClient is the client API for Registry service.
-//
-// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
-type RegistryClient interface {
-	GetLeader(ctx context.Context, in *LeaderRequest, opts ...grpc.CallOption) (*LeaderResponse, error)
-	UpdateLeader(ctx context.Context, in *LeaderUpdate, opts ...grpc.CallOption) (*LeaderUpdateResponse, error)
-}
-
-type registryClient struct {
-	cc grpc.ClientConnInterface
-}
-
-func NewRegistryClient(cc grpc.ClientConnInterface) RegistryClient {
-	return &registryClient{cc}
-}
-
-func (c *registryClient) GetLeader(ctx context.Context, in *LeaderRequest, opts ...grpc.CallOption) (*LeaderResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(LeaderResponse)
-	err := c.cc.Invoke(ctx, Registry_GetLeader_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *registryClient) UpdateLeader(ctx context.Context, in *LeaderUpdate, opts ...grpc.CallOption) (*LeaderUpdateResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(LeaderUpdateResponse)
-	err := c.cc.Invoke(ctx, Registry_UpdateLeader_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-// RegistryServer is the server API for Registry service.
-// All implementations must embed UnimplementedRegistryServer
-// for forward compatibility.
-type RegistryServer interface {
-	GetLeader(context.Context, *LeaderRequest) (*LeaderResponse, error)
-	UpdateLeader(context.Context, *LeaderUpdate) (*LeaderUpdateResponse, error)
-	mustEmbedUnimplementedRegistryServer()
-}
-
-// UnimplementedRegistryServer must be embedded to have
-// forward compatible implementations.
-//
-// NOTE: this should be embedded by value instead of pointer to avoid a nil
-// pointer dereference when methods are called.
-type UnimplementedRegistryServer struct{}
-
-func (UnimplementedRegistryServer) GetLeader(context.Context, *LeaderRequest) (*LeaderResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetLeader not implemented")
-}
-func (UnimplementedRegistryServer) UpdateLeader(context.Context, *LeaderUpdate) (*LeaderUpdateResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method UpdateLeader not implemented")
-}
-func (UnimplementedRegistryServer) mustEmbedUnimplementedRegistryServer() {}
-func (UnimplementedRegistryServer) testEmbeddedByValue()                  {}
-
-// UnsafeRegistryServer may be embedded to opt out of forward compatibility for this service.
-// Use of this interface is not recommended, as added methods to RegistryServer will
-// result in compilation errors.
-type UnsafeRegistryServer interface {
-	mustEmbedUnimplementedRegistryServer()
-}
-
-func RegisterRegistryServer(s grpc.ServiceRegistrar, srv RegistryServer) {
-	// If the following call pancis, it indicates UnimplementedRegistryServer was
-	// embedded by pointer and is nil.  This will cause panics if an
-	// unimplemented method is ever invoked, so we test this at initialization
-	// time to prevent it from happening at runtime later due to I/O.
-	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
-		t.testEmbeddedByValue()
-	}
-	s.RegisterService(&Registry_ServiceDesc, srv)
-}
-
-func _Registry_GetLeader_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(LeaderRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(RegistryServer).GetLeader(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: Registry_GetLeader_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(RegistryServer).GetLeader(ctx, req.(*LeaderRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Registry_UpdateLeader_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(LeaderUpdate)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(RegistryServer).UpdateLeader(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: Registry_UpdateLeader_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(RegistryServer).UpdateLeader(ctx, req.(*LeaderUpdate))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-// Registry_ServiceDesc is the grpc.ServiceDesc for Registry service.
-// It's only intended for direct use with grpc.RegisterService,
-// and not to be introspected or modified (even as a copy)
-var Registry_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "Registry",
-	HandlerType: (*RegistryServer)(nil),
-	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "GetLeader",
-			Handler:    _Registry_GetLeader_Handler,
-		},
-		{
-			MethodName: "UpdateLeader",
-			Handler:    _Registry_UpdateLeader_Handler,
+			MethodName: "Status",
+			Handler:    _Auction_Status_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

@@ -6,13 +6,8 @@ service Auction {
     rpc Bid(BidRequest) returns (BidResponse);
     rpc Result(ResultRequest) returns (ResultResponse);
     rpc Election(ElectionRequest) returns (ElectionResponse);
-    rpc Victory(VictoryRequest) returns (VictoryResponse);
     rpc LeaderMessage (LeaderMessageRequest) returns (LeaderMessageResponse);
-}
-
-service Registry {
-    rpc GetLeader(LeaderRequest) returns (LeaderResponse);
-    rpc UpdateLeader(LeaderUpdate) returns (LeaderUpdateResponse);
+    rpc Status (StatusRequest) returns (StatusResponse);
 }
 
 message BidRequest {
@@ -36,28 +31,21 @@ message ElectionRequest {
 
 message ElectionResponse {}
 
-message VictoryRequest {
-    int32 leader_id = 1;
-}
-
-message VictoryResponse {}
-
 message LeaderMessageRequest {
     string message = 1;
 }
 
 message LeaderMessageResponse {}
 
-message LeaderRequest {}
-
-message LeaderResponse {
-    string leader_address = 1;
+message StatusRequest {
+    int32 highestBid = 1;
+    Peer highestBidder = 2;
+    repeated Peer registeredUsers = 3;
 }
 
-message LeaderUpdate {
-    string leader_address = 1;
-}
+message StatusResponse {}
 
-message LeaderUpdateResponse {
-    string status = 1;
+message Peer {
+    string address = 1;
+    int32 port = 2;
 }
