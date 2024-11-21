@@ -39,13 +39,8 @@ message LeaderMessageResponse {}
 
 message StatusRequest {
     int32 highestBid = 1;
-    Peer highestBidder = 2;
-    repeated Peer registeredUsers = 3;
+    string highestBidder = 2;
+    repeated string registeredUsers = 3;
 }
 
 message StatusResponse {}
-
-message Peer {
-    string address = 1;
-    int32 port = 2;
-}
