@@ -19,8 +19,8 @@ import (
 type auctionServer struct {
 	pb.UnimplementedAuctionServer
 	highestBid             int32
-	highestBidder          peer.Peer
-	registeredUsers        []peer.Peer
+	highestBidder          string
+	registeredUsers        []string
 	auctionOver            bool
 	isLeader               bool
 	nodeID                 int32
@@ -45,8 +45,9 @@ func (s *auctionServer) Bid(ctx context.Context, req *pb.BidRequest) (*pb.BidRes
 	defer s.mutex.Unlock()
 
 	p, _ := peer.FromContext(ctx)
-	if !slices.Contains(s.registeredUsers, *p) {
-		s.registeredUsers = append(s.registeredUsers, *p)
+	ps := p.Addr.String()
+	if !slices.Contains(s.registeredUsers, ps) {
+		s.registeredUsers = append(s.registeredUsers, ps)
 	}
 
 	if s.auctionOver {
@@ -55,11 +56,14 @@ func (s *auctionServer) Bid(ctx context.Context, req *pb.BidRequest) (*pb.BidRes
 
 	if req.Amount > s.highestBid {
 		s.highestBid = req.Amount
-		s.highestBidder = *p
+		s.highestBidder = ps
 		for _, peer := range s.peers {
-			_, _ = peer.Bid(context.Background(), &pb.BidRequest{Amount: s.highestBid})
+			_, _ = peer.Status(context.Background(), &pb.StatusRequest{HighestBid: s.highestBid, HighestBidder: s.highestBidder, RegisteredUsers: s.registeredUsers})
 		}
 		return &pb.BidResponse{Status: fmt.Sprintf("success: you're now the highest bidder with %d", req.Amount)}, nil
+	}
+	for _, peer := range s.peers {
+		_, _ = peer.Status(context.Background(), &pb.StatusRequest{HighestBid: s.highestBid, HighestBidder: s.highestBidder, RegisteredUsers: s.registeredUsers})
 	}
 	return &pb.BidResponse{Status: "fail: your bid was too low"}, nil
 }
@@ -76,13 +80,20 @@ func (s *auctionServer) Result(ctx context.Context, req *pb.ResultRequest) (*pb.
 	return &pb.ResultResponse{HighestBid: s.highestBid, Winner: "auction is over, final result"}, nil
 }
 
+func (s *auctionServer) Status(ctx context.Context, req *pb.StatusRequest) (*pb.StatusResponse, error) {
+	s.highestBid = req.HighestBid
+	s.highestBidder = req.HighestBidder
+	s.registeredUsers = req.RegisteredUsers
+	return &pb.StatusResponse{}, nil
+}
+
 func (s *auctionServer) Election(ctx context.Context, req *pb.ElectionRequest) (*pb.ElectionResponse, error) {
 	log.Println("Election")
 
 	if !s.electionInProgress {
 		s.electionInProgress = true
 		s.higherServer = req.NodeId > s.nodeID
-		s.electionCountdown = 50
+		s.electionCountdown = 10
 		s.resetElectionCountdown = make(chan bool, 100)
 		go s.RunningElection()
 	}
@@ -112,7 +123,7 @@ func (s *auctionServer) RunningElection() {
 		s.electionCountdown--
 		if len(s.resetElectionCountdown) > 0 {
 			<-s.resetElectionCountdown
-			s.electionCountdown = 50
+			s.electionCountdown = 10
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
@@ -121,7 +132,7 @@ func (s *auctionServer) RunningElection() {
 func (s *auctionServer) BecomeLeader() {
 	log.Println("BecomeLeader")
 	s.mutex.Lock()
-	s.serverPort = s.leaderID
+	s.serverPort = s.baseport
 	s.leaderID = s.nodeID
 	s.isLeader = (s.leaderID == s.nodeID)
 	s.mutex.Unlock()
@@ -143,16 +154,6 @@ func (s *auctionServer) BecomeLeader() {
 			log.Fatalf("failed to serve: %v", err)
 		}
 	}()
-}
-
-func (s *auctionServer) Victory(ctx context.Context, req *pb.VictoryRequest) (*pb.VictoryResponse, error) {
-	log.Println("Victory")
-	s.mutex.Lock()
-	s.leaderID = req.LeaderId
-	s.isLeader = (s.leaderID == s.nodeID)
-	s.serverPort = s.leaderID
-	s.mutex.Unlock()
-	return &pb.VictoryResponse{}, nil
 }
 
 func (s *auctionServer) startElection() {
