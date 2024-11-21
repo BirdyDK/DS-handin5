@@ -65,20 +65,16 @@ func (s *auctionServer) Result(ctx context.Context, req *pb.ResultRequest) (*pb.
 
 func (s *auctionServer) Election(ctx context.Context, req *pb.ElectionRequest) (*pb.ElectionResponse, error) {
 	log.Println("Election")
-	/*if req.NodeId < s.nodeID {
-		s.mutex.Lock()
-		s.isLeader = false
-		s.mutex.Unlock()
-		go s.startElection()
-	}*/
+
 	if !s.electionInProgress {
 		s.electionInProgress = true
 		s.higherServer = req.NodeId > s.nodeID
-		s.electionCountdown = 20
+		s.electionCountdown = 50
 		s.resetElectionCountdown = make(chan bool, 100)
 		go s.RunningElection()
 	}
 
+	log.Println(req.NodeId, " v. ", s.nodeID)
 	if req.NodeId > s.nodeID {
 		s.higherServer = true
 	} else {
@@ -92,6 +88,7 @@ func (s *auctionServer) Election(ctx context.Context, req *pb.ElectionRequest) (
 func (s *auctionServer) RunningElection() {
 	log.Println("RunningElection")
 	for {
+		log.Println("Election time ", s.electionCountdown)
 		if s.electionCountdown == 0 {
 			s.electionInProgress = false
 			if !s.higherServer {
@@ -102,7 +99,7 @@ func (s *auctionServer) RunningElection() {
 		s.electionCountdown--
 		if len(s.resetElectionCountdown) > 0 {
 			<-s.resetElectionCountdown
-			s.electionCountdown = 20
+			s.electionCountdown = 50
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
@@ -123,31 +120,32 @@ func (s *auctionServer) Victory(ctx context.Context, req *pb.VictoryRequest) (*p
 
 func (s *auctionServer) startElection() {
 	log.Println("StartElection")
+	s.durationTimer = -1
 	s.mutex.Lock()
 	s.isLeader = false
 	s.mutex.Unlock()
-	higherIDNodes := false
+
+	fmt.Println(s.peers)
 
 	for index, peer := range s.peers {
-		fmt.Println("Index: ", index, " Peer: ", peer, " ID: ", s.peerAddrList[index])
-		if int(s.peerAddrList[index]) > int(s.nodeID) {
-			higherIDNodes = true
-			_, err := peer.Election(context.Background(), &pb.ElectionRequest{NodeId: s.nodeID})
-			if err == nil {
-				return
-			}
+		log.Println("Index: ", index, " Peer: ", peer, " ID: ", s.peerAddrList[index])
+		_, err := peer.Election(context.Background(), &pb.ElectionRequest{NodeId: s.nodeID})
+		if err != nil {
+			return
 		}
 	}
 
-	if !higherIDNodes {
-		s.mutex.Lock()
-		s.leaderID = s.nodeID
-		s.isLeader = true
-		s.mutex.Unlock()
-		for _, peer := range s.peers {
-			_, _ = peer.Victory(context.Background(), &pb.VictoryRequest{LeaderId: s.nodeID})
+	/*
+		if !higherIDNodes {
+			s.mutex.Lock()
+			s.leaderID = s.nodeID
+			s.isLeader = true
+			s.mutex.Unlock()
+			for _, peer := range s.peers {
+				_, _ = peer.Victory(context.Background(), &pb.VictoryRequest{LeaderId: s.nodeID})
+			}
 		}
-	}
+	*/
 }
 
 func (s *auctionServer) startAuction(duration time.Duration) {
@@ -181,21 +179,25 @@ func (s *auctionServer) LeaderMessage(ctx context.Context, req *pb.LeaderMessage
 func (s *auctionServer) TimerReset() {
 	log.Println("TimerReset")
 	s.durationTimer = 3
-	fmt.Println("timer is reset")
+	log.Println("timer is reset")
 }
 
 func (s *auctionServer) TimerCheck() {
 	for !s.isLeader {
+		if s.durationTimer < 0 {
+			continue
+		}
 		log.Println("TimerCheck")
 		s.durationTimer--
 		if s.durationTimer == 0 {
+			log.Println("Timer Ran Out")
 			s.startElection()
 
 		}
 		time.Sleep(time.Second)
 	}
 	if s.isLeader {
-		s.Timer.Stop()
+		s.durationTimer = -1
 	}
 }
 
@@ -237,7 +239,7 @@ func main() {
 	server.durationTimer = 60
 
 	for i := *baseport; i < *baseport+*servercount; i++ {
-		if i == *portID {
+		if i == *portID || i == *baseport {
 			continue
 		}
 
