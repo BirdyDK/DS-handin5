@@ -41,6 +41,7 @@ message StatusRequest {
     int32 highestBid = 1;
     string highestBidder = 2;
     repeated string registeredUsers = 3;
+    int32 time = 4;
 }
 
 message StatusResponse {}
