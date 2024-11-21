@@ -47,6 +47,9 @@ func (s *auctionServer) Bid(ctx context.Context, req *pb.BidRequest) (*pb.BidRes
 
 	if req.Amount > s.highestBid {
 		s.highestBid = req.Amount
+		for _, peer := range s.peers {
+			_, _ = peer.Bid(context.Background(), &pb.BidRequest{Amount: s.highestBid})
+		}
 		return &pb.BidResponse{Status: fmt.Sprintf("success: you're now the highest bidder with %d", req.Amount)}, nil
 	}
 	return &pb.BidResponse{Status: "fail: your bid was too low"}, nil
