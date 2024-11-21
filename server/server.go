@@ -6,17 +6,21 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"slices"
 	"sync"
 	"time"
 
 	pb "auctionService/proto/github.com/BirdyDK/DS-handin5"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/peer"
 )
 
 type auctionServer struct {
 	pb.UnimplementedAuctionServer
 	highestBid             int32
+	highestBidder          peer.Peer
+	registeredUsers        []peer.Peer
 	auctionOver            bool
 	isLeader               bool
 	nodeID                 int32
@@ -31,7 +35,6 @@ type auctionServer struct {
 	electionCountdown      int
 	resetElectionCountdown chan bool
 	durationTimer          int
-	durationOver           chan bool
 	Timer                  time.Timer
 	serverPort             int32
 }
@@ -41,12 +44,18 @@ func (s *auctionServer) Bid(ctx context.Context, req *pb.BidRequest) (*pb.BidRes
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
+	p, _ := peer.FromContext(ctx)
+	if !slices.Contains(s.registeredUsers, *p) {
+		s.registeredUsers = append(s.registeredUsers, *p)
+	}
+
 	if s.auctionOver {
 		return &pb.BidResponse{Status: "exception: auction is over"}, nil
 	}
 
 	if req.Amount > s.highestBid {
 		s.highestBid = req.Amount
+		s.highestBidder = *p
 		for _, peer := range s.peers {
 			_, _ = peer.Bid(context.Background(), &pb.BidRequest{Amount: s.highestBid})
 		}
