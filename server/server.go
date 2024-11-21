@@ -21,6 +21,7 @@ type auctionServer struct {
 	highestBid             int32
 	highestBidder          string
 	registeredUsers        []string
+	auctionTimer           int32
 	auctionOver            bool
 	isLeader               bool
 	nodeID                 int32
@@ -58,12 +59,12 @@ func (s *auctionServer) Bid(ctx context.Context, req *pb.BidRequest) (*pb.BidRes
 		s.highestBid = req.Amount
 		s.highestBidder = ps
 		for _, peer := range s.peers {
-			_, _ = peer.Status(context.Background(), &pb.StatusRequest{HighestBid: s.highestBid, HighestBidder: s.highestBidder, RegisteredUsers: s.registeredUsers})
+			_, _ = peer.Status(context.Background(), &pb.StatusRequest{HighestBid: s.highestBid, HighestBidder: s.highestBidder, RegisteredUsers: s.registeredUsers, Time: s.auctionTimer})
 		}
 		return &pb.BidResponse{Status: fmt.Sprintf("success: you're now the highest bidder with %d", req.Amount)}, nil
 	}
 	for _, peer := range s.peers {
-		_, _ = peer.Status(context.Background(), &pb.StatusRequest{HighestBid: s.highestBid, HighestBidder: s.highestBidder, RegisteredUsers: s.registeredUsers})
+		_, _ = peer.Status(context.Background(), &pb.StatusRequest{HighestBid: s.highestBid, HighestBidder: s.highestBidder, RegisteredUsers: s.registeredUsers, Time: s.auctionTimer})
 	}
 	return &pb.BidResponse{Status: "fail: your bid was too low"}, nil
 }
@@ -74,16 +75,18 @@ func (s *auctionServer) Result(ctx context.Context, req *pb.ResultRequest) (*pb.
 	defer s.mutex.Unlock()
 
 	if !s.auctionOver {
-		return &pb.ResultResponse{HighestBid: s.highestBid, Winner: "auction is still ongoing"}, nil
+		return &pb.ResultResponse{HighestBid: s.highestBid, Winner: ("auction is still ongoing." + s.highestBidder + " is leading")}, nil
 	}
 
-	return &pb.ResultResponse{HighestBid: s.highestBid, Winner: "auction is over, final result"}, nil
+	return &pb.ResultResponse{HighestBid: s.highestBid, Winner: ("auction is over, final result, " + s.highestBidder + " has won")}, nil
 }
 
 func (s *auctionServer) Status(ctx context.Context, req *pb.StatusRequest) (*pb.StatusResponse, error) {
+	log.Println("Status")
 	s.highestBid = req.HighestBid
 	s.highestBidder = req.HighestBidder
 	s.registeredUsers = req.RegisteredUsers
+	s.auctionTimer = req.Time
 	return &pb.StatusResponse{}, nil
 }
 
@@ -112,7 +115,7 @@ func (s *auctionServer) Election(ctx context.Context, req *pb.ElectionRequest) (
 func (s *auctionServer) RunningElection() {
 	log.Println("RunningElection")
 	for {
-		log.Println("Election time ", s.electionCountdown)
+		// log.Println("Election time ", s.electionCountdown)
 		if s.electionCountdown == 0 {
 			s.electionInProgress = false
 			if !s.higherServer {
@@ -136,9 +139,6 @@ func (s *auctionServer) BecomeLeader() {
 	s.leaderID = s.nodeID
 	s.isLeader = (s.leaderID == s.nodeID)
 	s.mutex.Unlock()
-
-	// Start the auction timer if it hasn't been started
-	go s.startAuction(2 * time.Minute)
 
 	go s.PingSubordinates()
 
@@ -168,8 +168,6 @@ func (s *auctionServer) startElection() {
 		return
 	}
 
-	fmt.Println(s.peers)
-
 	for index, peer := range s.peers {
 		log.Println("Index: ", index, " Peer: ", peer, " ID: ", s.peerAddrList[index])
 		_, err := peer.Election(context.Background(), &pb.ElectionRequest{NodeId: s.nodeID})
@@ -191,20 +189,39 @@ func (s *auctionServer) startElection() {
 	*/
 }
 
-func (s *auctionServer) startAuction(duration time.Duration) {
+func (s *auctionServer) startAuction(durationSec int32) {
 	log.Println("StartAuction")
-	time.Sleep(duration)
+	s.auctionTimer = durationSec
+	for s.auctionTimer > 0 {
+		s.auctionTimer--
+		time.Sleep(time.Second)
+	}
 	s.mutex.Lock()
 	s.auctionOver = true
 	s.mutex.Unlock()
+	s.auctionCooldown()
 }
+
+func (s *auctionServer) auctionCooldown() {
+	log.Println("AuctionCooldown")
+	for s.auctionTimer > -60 {
+		s.auctionTimer--
+		time.Sleep(time.Second)
+	}
+	s.highestBid = 0
+	s.highestBidder = ""
+	s.mutex.Lock()
+	s.auctionOver = false
+	s.mutex.Unlock()
+	s.startAuction(120)
+}
+
 func (s *auctionServer) PingSubordinates() {
-	log.Println("PingSubordinates")
-	fmt.Println(s.peers)
 	for {
-		fmt.Println("pinging subordinates")
+		log.Println("PingSubordinates")
+		//fmt.Println("pinging subordinates")
 		for _, peer := range s.peers {
-			fmt.Println("pinging subordinates for real this time")
+			//fmt.Println("pinging subordinates for real this time")
 			_, _ = peer.LeaderMessage(context.Background(), &pb.LeaderMessageRequest{Message: "the leader is trying to reach you"})
 		}
 		time.Sleep(1 * time.Second)
@@ -212,9 +229,9 @@ func (s *auctionServer) PingSubordinates() {
 }
 func (s *auctionServer) LeaderMessage(ctx context.Context, req *pb.LeaderMessageRequest) (*pb.LeaderMessageResponse, error) {
 	log.Println("LeaderMessage")
-	fmt.Println("ping message")
-	log.Println(req)
-	fmt.Println("ping message over")
+	//fmt.Println("ping message")
+	//log.Println(req)
+	//fmt.Println("ping message over")
 	s.TimerReset()
 	return &pb.LeaderMessageResponse{}, nil
 }
@@ -222,7 +239,7 @@ func (s *auctionServer) LeaderMessage(ctx context.Context, req *pb.LeaderMessage
 func (s *auctionServer) TimerReset() {
 	log.Println("TimerReset")
 	s.durationTimer = 3
-	log.Println("timer is reset")
+	//log.Println("timer is reset")
 }
 
 func (s *auctionServer) TimerCheck() {
@@ -304,9 +321,9 @@ func main() {
 	}
 
 	// Start the auction with a 2-minute timer
-	if server.isLeader {
-		go server.startAuction(2 * time.Minute)
-	}
+
+	go server.startAuction(120)
+
 	go server.TimerCheck()
 	server.Timer = *time.NewTimer(20 * time.Second)
 
